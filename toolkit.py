@@ -15,10 +15,12 @@ num_range = r'^[0-9]{2,3}-[0-9]{2,3} '
 gradient = {1:[1,2,3,4],2:[5,6,7,8,9,10],3:[11,12,13,14,15,16],4:[17,18,19,20]}
 encounter_site = r'https://www.aidedd.org/dnd/monstres.php'
 loot_site = r'https://dungeonmastertools.github.io/treasure.html'
+# Keep encounter names readable while resolving AideDD's different URL slugs.
 creature_aliases = {
     'deep-gnome': 'deep-gnome-svirfneblin',
     'will-o-wisp': 'will-o--wisp',
     'incubus': 'succubus',
+    # The fragment tells our parser to read variant stats from the shared page.
     'kuo-toa-monitor': 'kuo-toa-whip#kuo-toa-monitor',
 }
 
@@ -144,13 +146,16 @@ def find_creature(string):
 
 
 def _get_challenge(url):
+    """Read CR and XP from the requested pre-2024 stat block or variant."""
     name = parse_qs(urlsplit(url).query).get('vo', ['unknown creature'])[0]
+    # Their standalone 2024 pages are not replacements for these 2014 variants.
     if name in {'mind-flayer-arcanist', 'quaggoth-thonot'}:
         raise StatBlockLookupError(
             f'AideDD has no pre-2024 stat block for {name}. '
             'Consult the 2014 Monster Manual; 2024 stats are not substituted.'
         )
 
+    # Fragments are local variant identifiers and are not sent in HTTP requests.
     request_url, variant = urldefrag(url)
     try:
         response = requests.get(request_url, timeout=20)
@@ -161,6 +166,7 @@ def _get_challenge(url):
 
     soup = bs4.BeautifulSoup(response.text, features='html.parser')
     if variant:
+        # The first CR/XP on this page belongs to the whip, not the monitor.
         if variant != 'kuo-toa-monitor' or name != 'kuo-toa-whip':
             raise StatBlockLookupError(f'Unsupported stat-block variant: {url}')
         paragraphs = [p.get_text(' ', strip=True) for p in soup.find_all('p')]
@@ -170,15 +176,21 @@ def _get_challenge(url):
     else:
         text = soup.get_text(' ', strip=True)
 
+    # \b starts at the word "Challenge"; optional noncapturing groups accept
+    # "Challenge rating of" too. Capture group 1 is an integer or fraction (1/4).
+    # \s+ requires whitespace, while \s* permits optional whitespace.
     match = re.search(
         r'\bChallenge(?:\s+rating)?(?:\s+of)?\s+(\d+(?:/\d+)?)'
+        # Match literal parentheses around XP. Capture group 2 accepts digits,
+        # commas, and whitespace (e.g. "25,000 XP"); IGNORECASE accepts either case.
         r'\s*\(\s*([\d,\s]+)\s*XP\s*\)', text, re.IGNORECASE
     )
+    # AideDD can return HTTP 200 for an empty page, so validate the actual content.
     if not match:
         raise StatBlockLookupError(f'No CR/XP found in the requested stat block: {url}')
     cr_text, xp_text = match.groups()
     cr = do_div(cr_text) if '/' in cr_text else int(cr_text)
-    xp = int(re.sub(r'[,\s]', '', xp_text))
+    xp = int(re.sub(r'[,\s]', '', xp_text))  # Accept grouped values such as 25,000 XP.
     return cr, xp
 
 
@@ -272,6 +284,7 @@ def generator(source,terrain,level,diff=''):
         diff = 'h'
 
     
+    # Preserve party level for the XP multiplier; rank only selects the source file.
     rank = level
     for key in gradient:
             if level in gradient[key]:
@@ -300,12 +313,15 @@ def generator(source,terrain,level,diff=''):
     crs = []
 
     if creatures:
+        # Resolve quantities before network/browser calls; narrative numbers are not counts.
         totals = creature_counts(encounter)
         for creature in creatures:
             xps.append(get_xp(creature))
             crs.append(get_cr(creature))
             open_link(creature)
 
+        # Sum count * XP per creature type, then count only significant monsters
+        # when selecting the group multiplier used for conversion to a loot CR.
         xp = dot(xps,totals)
         count_vector = count_creatures(crs,level)
         significant_creatures = dot(totals,count_vector)
