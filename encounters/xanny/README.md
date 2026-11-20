@@ -40,10 +40,12 @@ Each line contains an inclusive percentile range and one encounter:
 - Spellcaster and warrior vampires retain their variant descriptions with
   the base `vampire` stat-block marker.
 
-The current generator's XP calculation assumes that every number in the
-encounter is a creature count. Source entries with alternatives, mounts,
-implied counts, or additional numbers in descriptions can require manual
-interpretation; transcription does not change that calculation.
+The generator associates counts with creature markers, including quantities
+before short labels such as hunters or parenthesized stat-block names.
+Distances, prices, and rations are not creature counts. Mounts inherit rider
+counts, and the knight/doppelganger substitution replaces one knight.
+Unresolved alternatives, day/night or chance conditions, and unquantified
+groups raise `CreatureCountError` rather than producing speculative XP.
 
 ## Recovered source entries
 

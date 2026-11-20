@@ -106,6 +106,17 @@ Loot tables live in `loot/table_1.txt` through `loot/table_4.txt`, using the
 same tier boundaries as encounters. Challenge ratings below 1 use tier 1;
 ratings above 20 use tier 4 with an upper-percentile roll.
 
+The encounter-to-loot calculation sums each creature count multiplied by its
+stat-block XP. It applies the group multiplier using creatures whose CR is
+at least half the original party level, then converts the adjusted XP to the
+highest CR threshold it reaches. The current conversion has a minimum of
+CR 1 and a maximum of CR 30. That converted CR selects the loot tier;
+the party's encounter-table rank does not select the loot tier.
+
+For example, four trolls at party level 1 contribute 7,200 XP. The group
+multiplier is 2, giving 14,400 adjusted XP, which converts to CR 15 and
+uses `loot/table_3.txt`. Coin amounts still depend on the loot roll.
+
 ## Tests
 
 Install the development dependency if needed, then run pytest in the
@@ -122,11 +133,29 @@ behavior. Browser launches and HTTP requests are mocked.
 
 ## Current limitations
 
-The generator's XP calculation treats every number in an encounter as a
-creature count. Alternatives, mounts, implied counts, and numbers in
-narrative descriptions can cause incorrect totals or calculation errors.
-These entries may need manual interpretation. Stat-block lookups also
-depend on AideDD's availability and HTML format.
+Creature counts are associated with marked stat blocks. Labels such as
+``8 hunters (`tribal-warrior)`` count as eight creatures;
+numbers in distances, prices, and rations do not contribute to XP. Articles
+such as "a" and "an" imply one individual, and mounts inherit rider counts.
+The parenthesized knight/doppelganger substitution replaces one knight
+rather than adding an extra creature.
+
+Alternatives, day/night conditions, chance-dependent creatures, and
+unquantified groups raise `CreatureCountError` before stat-block lookups.
+Resolve the choice or supply an explicit quantity before calculating XP.
+The parser recognizes the table's common prose patterns; custom descriptions
+should use explicit quantities next to creature markers. Stat-block lookups
+also depend on AideDD's availability and HTML format.
+
+Creature links resolve AideDD's alternate slugs for deep gnomes,
+will-o'-wisps, and incubi. Kuo-toa monitors link to the kuo-toa whip page,
+which includes their variant stats, with the monitor's own CR and XP used
+for calculations.
+
+AideDD has no matching pre-2024 pages for mind flayer arcanists or quaggoth
+thonots. Those encounters raise `StatBlockLookupError` with a message to
+consult the 2014 Monster Manual. The toolkit does not substitute 2024 or
+base-creature stats. Failed requests and missing CR/XP also raise this error.
 
 ## Planned features
 

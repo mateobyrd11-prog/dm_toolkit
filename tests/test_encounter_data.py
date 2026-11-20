@@ -50,9 +50,9 @@ def test_all_encounter_rows_evaluate_and_preserve_creature_links(relative_path, 
         assert not re.search(r"\d+d\d+|\d+\+\d+", encounter), row
         slugs = re.findall(r"`([a-z]+(?:-[a-z]+)*)", description)
         assert len(slugs) == description.count("`"), row
-        assert toolkit.find_creature(encounter) == [
-            f"{toolkit.encounter_site}?vo={slug}" for slug in slugs
-        ]
+        links = toolkit.find_creature(encounter)
+        assert len(links) == len(slugs), row
+        assert links == [toolkit.creature_url(slug) for slug in slugs], row
 
 
 @pytest.mark.parametrize("terrain", ["swamp", "underwater"])

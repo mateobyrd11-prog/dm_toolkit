@@ -2,8 +2,10 @@ from webbrowser import open as open_link
 from random import randint as die
 from random import randrange, choice
 from numpy import dot
+from urllib.parse import parse_qs, urldefrag, urlsplit
 import re, bs4, requests
 from xp_table import xp_table
+from encounter_counts import CreatureCountError, creature_counts
 dice = r'[0-9]+d[0-9]+'
 plus = r'[0-9]+\+[0-9]+'
 creature_name = r'`\w+(?:-\w+)*'
@@ -13,6 +15,20 @@ num_range = r'^[0-9]{2,3}-[0-9]{2,3} '
 gradient = {1:[1,2,3,4],2:[5,6,7,8,9,10],3:[11,12,13,14,15,16],4:[17,18,19,20]}
 encounter_site = r'https://www.aidedd.org/dnd/monstres.php'
 loot_site = r'https://dungeonmastertools.github.io/treasure.html'
+creature_aliases = {
+    'deep-gnome': 'deep-gnome-svirfneblin',
+    'will-o-wisp': 'will-o--wisp',
+    'incubus': 'succubus',
+    'kuo-toa-monitor': 'kuo-toa-whip#kuo-toa-monitor',
+}
+
+
+class StatBlockLookupError(ValueError):
+    """A stat block could not supply the requested pre-2024 CR and XP."""
+
+
+def creature_url(name):
+    return encounter_site + '?vo=' + creature_aliases.get(name, name)
 
 
 def choose_terrain():
@@ -122,39 +138,56 @@ def find_creature(string):
             for i in range(len(names)):
                 names[i] = names[i][1:]
             for name in names:
-                links.append(encounter_site+f'?vo={name}')
+                links.append(creature_url(name))
 
     return links
 
 
-def get_cr(html):
-    creature = requests.get(html)
-    
-    if creature.status_code == 200:
-        creature_data = bs4.BeautifulSoup(creature.text, features='html.parser')
-        data = creature_data.find(string=lambda text: 'XP' in text)
+def _get_challenge(url):
+    name = parse_qs(urlsplit(url).query).get('vo', ['unknown creature'])[0]
+    if name in {'mind-flayer-arcanist', 'quaggoth-thonot'}:
+        raise StatBlockLookupError(
+            f'AideDD has no pre-2024 stat block for {name}. '
+            'Consult the 2014 Monster Manual; 2024 stats are not substituted.'
+        )
 
-    cr_str = re.search(cr_raw,data).group(0)
-    
-    if '/' in cr_str:
-        cr = do_div(cr_str)
+    request_url, variant = urldefrag(url)
+    try:
+        response = requests.get(request_url, timeout=20)
+    except requests.RequestException as error:
+        raise StatBlockLookupError(f'Could not fetch stat block: {url}') from error
+    if response.status_code != 200:
+        raise StatBlockLookupError(f'Stat block returned HTTP {response.status_code}: {url}')
+
+    soup = bs4.BeautifulSoup(response.text, features='html.parser')
+    if variant:
+        if variant != 'kuo-toa-monitor' or name != 'kuo-toa-whip':
+            raise StatBlockLookupError(f'Unsupported stat-block variant: {url}')
+        paragraphs = [p.get_text(' ', strip=True) for p in soup.find_all('p')]
+        text = next((p for p in paragraphs if re.search(
+            r'kuo-toa monitor.*challenge rating', p, re.IGNORECASE
+        )), '')
     else:
-        cr = int(cr_str)
-    
-    return cr
+        text = soup.get_text(' ', strip=True)
+
+    match = re.search(
+        r'\bChallenge(?:\s+rating)?(?:\s+of)?\s+(\d+(?:/\d+)?)'
+        r'\s*\(\s*([\d,\s]+)\s*XP\s*\)', text, re.IGNORECASE
+    )
+    if not match:
+        raise StatBlockLookupError(f'No CR/XP found in the requested stat block: {url}')
+    cr_text, xp_text = match.groups()
+    cr = do_div(cr_text) if '/' in cr_text else int(cr_text)
+    xp = int(re.sub(r'[,\s]', '', xp_text))
+    return cr, xp
+
+
+def get_cr(html):
+    return _get_challenge(html)[0]
 
 
 def get_xp(html):
-    creature_data = requests.get(html)
-
-    if creature_data.status_code == 200:
-        data = bs4.BeautifulSoup(creature_data.text, features='html.parser')
-        xp_string = data.find(string=lambda text: 'XP' in text)
-
-    xp_only = re.search(xp_raw,xp_string).group(0)
-    xp = int(xp_only[1:])
-
-    return xp
+    return _get_challenge(html)[1]
 
 
 def count_creatures(crs,party_level):
@@ -239,12 +272,13 @@ def generator(source,terrain,level,diff=''):
         diff = 'h'
 
     
+    rank = level
     for key in gradient:
             if level in gradient[key]:
-                level = key
+                rank = key
                 break
 
-    filename = f'encounters/{source}/{terrain}/rank_{level}.txt'
+    filename = f'encounters/{source}/{terrain}/rank_{rank}.txt'
     number = roll(1,100)[0]
 
     diff_ranges = {'e':(1,50),'m':(25,75),'h':(50,100)}
@@ -266,13 +300,12 @@ def generator(source,terrain,level,diff=''):
     crs = []
 
     if creatures:
+        totals = creature_counts(encounter)
         for creature in creatures:
-            open_link(creature)
             xps.append(get_xp(creature))
             crs.append(get_cr(creature))
+            open_link(creature)
 
-        totals = [int(val) for val in re.findall(r'[0-9]+',encounter)]
-        
         xp = dot(xps,totals)
         count_vector = count_creatures(crs,level)
         significant_creatures = dot(totals,count_vector)

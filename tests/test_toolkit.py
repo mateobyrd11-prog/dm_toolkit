@@ -70,7 +70,7 @@ def test_stat_block_challenge_and_xp_parsing(challenge, xp, monkeypatch):
     expected_cr = {"1/4": 0.25, "1/2": 0.5, "2": 2}[challenge]
     assert toolkit.get_cr("https://example.test/monster") == expected_cr
     assert toolkit.get_xp("https://example.test/monster") == xp
-    assert get.call_args_list == [call("https://example.test/monster")] * 2
+    assert get.call_args_list == [call("https://example.test/monster", timeout=20)] * 2
 
 
 def test_count_creatures_includes_challenges_at_half_the_party_level():
