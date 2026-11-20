@@ -197,6 +197,12 @@ def strip_range(string):
 def loot(cr):
     if cr < 1:
         cr = 1
+    
+    start = 0
+    if cr > 20:
+        cr = 20
+        start = 50
+        stop = 100
 
     for key in gradient:
         if round(cr) in gradient[key]:
@@ -205,6 +211,10 @@ def loot(cr):
 
     filename = f'loot/table_{table}.txt'
     number = roll(1,100)[0]
+    
+    if start:
+        number = randrange(start,stop)
+        
     with open(filename, 'r') as file:
         for line in file:
             if in_range(number, line):
