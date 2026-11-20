@@ -287,9 +287,9 @@ def generator(source,terrain,level,diff=''):
     # Preserve party level for the XP multiplier; rank only selects the source file.
     rank = level
     for key in gradient:
-            if level in gradient[key]:
-                rank = key
-                break
+        if level in gradient[key]:
+            rank = key
+            break
 
     filename = f'encounters/{source}/{terrain}/rank_{rank}.txt'
     number = roll(1,100)[0]
