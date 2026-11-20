@@ -18,7 +18,7 @@
 81-85 1d10 `assassin
 86-90 1d4+1 `gray-slaad
 91-93 1d10 `oni
-94-96 1 spellcaster `vampire or 1 warrior `vampire
+94-96 1 spellcaster `vampire or 1 warrior `vampire (check Monster Manual)
 97-97 1d4 `archmage
 98-98 1d3 `rakshasa
 99-99 1d4 `vampire
