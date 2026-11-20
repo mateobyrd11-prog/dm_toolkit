@@ -1,6 +1,6 @@
 from webbrowser import open as open_link
 from random import randint as die
-from random import randrange
+from random import randrange, choice
 from numpy import dot
 import re, bs4, requests
 from xp_table import xp_table
@@ -15,6 +15,11 @@ encounter_site = r'https://www.aidedd.org/dnd/monstres.php'
 loot_site = r'https://dungeonmastertools.github.io/treasure.html'
 
 
+def choose_terrain():
+    return choice(['arctic', 'coastal', 'desert', 
+                   'forest', 'grassland', 'hill', 
+                   'mountain', 'swamp', 'underdark', 
+                   'underwater', 'urban'])
 
 
 def roll(num,faces):
