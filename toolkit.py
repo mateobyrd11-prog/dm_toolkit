@@ -15,6 +15,8 @@ encounter_site = r'https://www.aidedd.org/dnd/monstres.php'
 loot_site = r'https://dungeonmastertools.github.io/treasure.html'
 
 
+
+
 def roll(num,faces):
     set = []
     total = 0
