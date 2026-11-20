@@ -1,0 +1,28 @@
+name: dm_toolkit
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+      - beautifulsoup4==4.15.0
+      - byu_pytest_utils==0.8.4
+      - byuimage==0.5.0
+      - certifi==2026.10.23
+      - charset-normalizer==3.5.2
+      - colorama==0.4.6
+      - idna==3.20
+      - iniconfig==2.3.0
+      - Jinja2==3.1.6
+      - MarkupSafe==3.0.3
+      - numpy==2.5.5
+      - packaging==26.3
+      - pillow==12.3.0
+      - pluggy==1.6.0
+      - pygame-ce==2.5.8
+      - Pygments==2.21.0
+      - pytest==9.1.1
+      - requests==2.34.2
+      - soupsieve==2.9.2
+      - typing_extensions==4.16.0
+      - urllib3==2.8.0
